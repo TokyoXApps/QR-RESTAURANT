@@ -400,6 +400,10 @@
     document.getElementById('btnOpenCartModal').onclick = () => {
       renderCartModal();
       document.getElementById('cartModal').classList.remove('hidden');
+      // Pre-fetch GPS location silently in the background while user reviews cart
+      if (window.getUserLocation) {
+        window.getUserLocation().catch(e => console.log('Silent GPS pre-fetch pending permission'));
+      }
     };
 
     document.getElementById('btnCloseCartModal').onclick = () => {
