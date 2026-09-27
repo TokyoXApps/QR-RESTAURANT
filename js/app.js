@@ -219,33 +219,48 @@
     return R * c; // Distance in meters
   };
 
-  // Get Current GPS Coordinates with Instant Mobile Network Fallback
-  window.getUserLocation = function() {
+  // Get Current GPS Coordinates with Instant Cache & Ultra-Fast Mobile Mode
+  let cachedUserPos = null;
+  let lastPosTime = 0;
+
+  window.getUserLocation = function(forceRefresh = false) {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
         reject(new Error('الجي بي إس (GPS) غير مدعوم في متصفحك!'));
         return;
       }
 
-      // 1st Attempt: Fast High Accuracy
+      // Return cached position instantly if retrieved within the last 3 minutes
+      if (!forceRefresh && cachedUserPos && (Date.now() - lastPosTime < 180000)) {
+        return resolve(cachedUserPos);
+      }
+
+      // Fast Mobile Mode: Low Accuracy Network/WiFi first (0-100ms response), fallback to high accuracy
       navigator.geolocation.getCurrentPosition(
-        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        (errHigh) => {
-          console.warn('GPS High Accuracy failed or timed out, trying network geolocation fallback...', errHigh);
-          // 2nd Attempt: Instant Network / WiFi Geolocation Fallback
+        (pos) => {
+          cachedUserPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          lastPosTime = Date.now();
+          resolve(cachedUserPos);
+        },
+        (errLow) => {
+          console.warn('Fast location failed, trying high accuracy fallback...', errLow);
           navigator.geolocation.getCurrentPosition(
-            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            (errLow) => {
+            (pos) => {
+              cachedUserPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+              lastPosTime = Date.now();
+              resolve(cachedUserPos);
+            },
+            (errHigh) => {
               let msg = 'يرجى تفعيل خدمة الموقع الجغرافي بالهاتف وإعطاء الإذن للمتصفح.';
-              if (errLow.code === errLow.PERMISSION_DENIED) msg = 'تم رفض إذن الوصول للموقع الجغرافي. يرجى السماح للمتصفح بالوصول للموقع في إعدادات الهاتف.';
-              else if (errLow.code === errLow.POSITION_UNAVAILABLE) msg = 'تعذر تحديد موقعك الجغرافي حالياً. أعد تفعيل الـ GPS في الهاتف.';
-              else if (errLow.code === errLow.TIMEOUT) msg = 'انتهت مهلة الاستجابة. يرجى التأكد من تشغيل الـ GPS بالهاتف وإعادة المحاولة.';
+              if (errHigh.code === errHigh.PERMISSION_DENIED) msg = 'تم رفض إذن الوصول للموقع الجغرافي. يرجى السماح للمتصفح بالوصول للموقع في إعدادات الهاتف.';
+              else if (errHigh.code === errHigh.POSITION_UNAVAILABLE) msg = 'تعذر تحديد موقعك الجغرافي حالياً. أعد تفعيل الـ GPS بالهاتف.';
+              else if (errHigh.code === errHigh.TIMEOUT) msg = 'انتهت مهلة الاستجابة. يرجى التأكد من تشغيل الـ GPS بالهاتف وإعادة المحاولة.';
               reject(new Error(msg));
             },
-            { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 300000 }
           );
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 30000 }
+        { enableHighAccuracy: false, timeout: 3000, maximumAge: 300000 }
       );
     });
   };
