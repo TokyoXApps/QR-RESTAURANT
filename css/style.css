@@ -1,0 +1,93 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap');
+
+:root {
+  --primary-orange: #f97316;
+  --primary-red: #ef4444;
+  --gradient-brand: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+  --dark-bg: #0b0f19;
+  --dark-card: #151c2c;
+  --dark-card-border: rgba(255, 255, 255, 0.08);
+}
+
+* {
+  font-family: 'Cairo', sans-serif !important;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Cairo', sans-serif !important;
+  background-color: var(--dark-bg);
+  color: #f8fafc;
+}
+
+/* التمرير السلس وإخفاء شريط التمرير */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* تدرجات وهوية التصميم الجديد المستوحى من الصور */
+.bg-brand-gradient {
+  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+}
+
+.text-brand-gradient {
+  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-card {
+  background-color: var(--dark-card);
+  border: 1px solid var(--dark-card-border);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+.brand-card-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.brand-card-hover:hover {
+  transform: translateY(-3px);
+  border-color: rgba(249, 115, 22, 0.4);
+  box-shadow: 0 15px 30px -10px rgba(239, 68, 68, 0.2);
+}
+
+/* وميض الطلب الجاهز */
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+    border-color: rgba(16, 185, 129, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.8);
+    border-color: rgba(52, 211, 153, 1);
+  }
+}
+
+.order-ready-flashing-light {
+  animation: glowPulse 1.8s infinite;
+}
+
+/* طباعة الفواتير */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printable-area, .printable-area * {
+    visibility: visible;
+  }
+  .printable-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    color: black !important;
+    background: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
