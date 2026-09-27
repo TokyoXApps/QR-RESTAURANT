@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>القائمة الإلكترونية - QR Restaurant</title>
   
   <!-- Google Fonts Cairo -->
@@ -32,11 +32,25 @@
   <script src="js/app.js"></script>
 </head>
 
-<body class="bg-[#0b0f19] text-slate-100 min-h-screen pb-28 font-cairo">
+<body class="bg-[#0b0f19] text-slate-100 min-h-screen pb-28 font-cairo relative">
+
+  <!-- IP / Device Block Overlay -->
+  <div id="ipBlockOverlay" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-xl p-6 text-center space-y-4">
+    <div class="w-20 h-20 bg-rose-500/20 text-rose-500 rounded-3xl flex items-center justify-center text-4xl border border-rose-500/40 shadow-2xl">
+      🚫
+    </div>
+    <h2 class="text-2xl font-black text-white">تـم حظر دخولك من إدارة المطعم!</h2>
+    <p class="text-xs font-bold text-slate-300 max-w-xs leading-relaxed">
+      عذراً، تم حظر استخدام هذا الجهاز من قبل إدارة المطعم لمخالفة شروط الخدمة أو إساءة الاستخدام.
+    </p>
+    <div class="p-3 bg-slate-900 border border-slate-800 rounded-2xl text-[11px] font-mono text-slate-400">
+      ID / IP: <span id="blockedDevId" class="text-rose-400 font-bold">---</span>
+    </div>
+  </div>
 
   <!-- Header -->
   <header class="bg-[#151c2c]/90 border-b border-slate-800/80 sticky top-0 z-40 backdrop-blur-md px-4 py-3.5">
-    <div class="max-w-md mx-auto flex justify-between items-center">
+    <div class="w-full max-w-2xl mx-auto flex justify-between items-center">
       <div class="flex items-center gap-3">
         <div
           class="w-11 h-11 bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-600 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg shadow-orange-950/50">
@@ -60,13 +74,11 @@
           <option value="fr">🇫🇷 FR</option>
           <option value="en">🇬🇧 EN</option>
         </select>
-
-
       </div>
     </div>
   </header>
 
-  <main class="max-w-md mx-auto p-4 space-y-5">
+  <main class="w-full max-w-2xl mx-auto p-4 space-y-5">
 
     <!-- Hero Banner (مماثل لـ Banner الصورة 1 و 2) -->
     <div
@@ -138,13 +150,13 @@
       <div class="flex justify-between items-center px-1">
         <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider">الوجبات الموصى بها</h3>
       </div>
-      <section id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+      <section id="productsGrid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
       </section>
     </div>
   </main>
 
   <!-- Sticky Bottom View Cart Floating Bar -->
-  <div id="stickyCartBar" class="hidden fixed bottom-4 left-4 right-4 max-w-md mx-auto z-40">
+  <div id="stickyCartBar" class="hidden fixed bottom-4 left-4 right-4 max-w-2xl mx-auto z-40">
     <button id="btnOpenCartModal"
       class="w-full py-3.5 px-5 bg-gradient-to-r from-orange-500 via-rose-500 to-orange-600 text-white font-black text-sm rounded-2xl shadow-2xl shadow-rose-950/60 flex justify-between items-center active:scale-95 transition-all">
       <div class="flex items-center gap-3">
@@ -215,11 +227,46 @@
     let activeCat = 'ALL';
     let currencySymbol = 'د.ج';
     let activeCustomerOrder = null;
+    let clientIp = 'Unknown-IP';
+    let clientDeviceId = window.getClientDeviceId ? window.getClientDeviceId() : 'DEV-UNKNOWN';
+    let blockedIpsList = {};
+    let isUserBlocked = false;
 
-    window.db.ref('settings').on('value', (snap) => {
-      const s = snap.val() || {};
-      if (s.currency) currencySymbol = s.currency;
+    if (window.getClientIp) {
+      window.getClientIp().then(ip => {
+        clientIp = ip;
+        checkBlockStatus();
+      });
+    }
+
+    window.db.ref('blocked_ips').on('value', (snap) => {
+      blockedIpsList = snap.val() || {};
+      checkBlockStatus();
     });
+
+    function checkBlockStatus() {
+      isUserBlocked = Object.values(blockedIpsList).some(b => 
+        (clientIp !== 'Unknown-IP' && b.target === clientIp) || (clientDeviceId && b.target === clientDeviceId)
+      );
+
+      const overlay = document.getElementById('ipBlockOverlay');
+      if (isUserBlocked) {
+        document.getElementById('blockedDevId').textContent = clientIp !== 'Unknown-IP' ? clientIp : clientDeviceId;
+        overlay.classList.remove('hidden');
+      } else {
+        overlay.classList.add('hidden');
+      }
+    }
+
+    if (window.listenGlobalSettings) {
+      window.listenGlobalSettings((s) => {
+        if (s.currency) currencySymbol = s.currency;
+        if (s.hero_banner_text) {
+          const bannerTextEl = document.querySelector('.relative.overflow-hidden.rounded-3xl h2');
+          if (bannerTextEl) bannerTextEl.textContent = s.hero_banner_text;
+        }
+      });
+    }
 
     window.db.ref('categories').on('value', (snap) => {
       categories = snap.val() || {};
@@ -405,8 +452,49 @@
       cart[index].notes = notes;
     };
 
+    let globalSettings = {};
+
+    if (window.listenGlobalSettings) {
+      window.listenGlobalSettings((s) => {
+        globalSettings = s || {};
+        currencySymbol = s.currency || 'د.ج';
+        document.getElementById('restaurantNameHeader').textContent = s.restaurant_name || 'QR Restaurant';
+        if (s.hero_banner_text) {
+          const bannerP = document.querySelector('#mainBanner p');
+          if (bannerP) bannerP.textContent = s.hero_banner_text;
+        }
+      });
+    }
+
+    async function checkGpsFenceBeforeAction() {
+      if (!globalSettings || !globalSettings.gps_enabled) return true; // GPS Fence turned off by Admin
+
+      const restLat = parseFloat(globalSettings.gps_lat);
+      const restLng = parseFloat(globalSettings.gps_lng);
+      const maxRadius = parseInt(globalSettings.gps_radius, 10) || 150;
+
+      if (!restLat || !restLng) return true;
+
+      try {
+        const userLoc = await window.getUserLocation();
+        const distanceMeters = window.calculateDistanceMeters(userLoc.lat, userLoc.lng, restLat, restLng);
+
+        if (distanceMeters > maxRadius) {
+          alert(`⛔ عذراً! أنت بعيد عن موقع المطعم.\n\nالمسافة الحالية بينك وبين المطعم: ${Math.round(distanceMeters)} متر\nالمسافة المسموحة: ${maxRadius} متر\n\nيجب أن تكون متواجداً داخل/قرب المطعم لإمكانية طلب الوجبات.`);
+          return false;
+        }
+        return true;
+      } catch (err) {
+        alert(`⛔ يجب تفعيل الـ GPS لتحديد موقعك وتأكيد تواجدك بالمطعم:\n\n${err.message}`);
+        return false;
+      }
+    }
+
     document.getElementById('btnSubmitOrder').onclick = async () => {
       if (cart.length === 0) return;
+
+      const canProceed = await checkGpsFenceBeforeAction();
+      if (!canProceed) return;
 
       const totalSum = cart.reduce((sum, i) => sum + i.subtotal, 0);
       const notes = document.getElementById('orderNotesInput').value.trim();
@@ -450,6 +538,9 @@
     }
 
     document.getElementById('btnCallWaiter').onclick = async () => {
+      const canProceed = await checkGpsFenceBeforeAction();
+      if (!canProceed) return;
+
       const newRef = window.db.ref('calls').push();
       await newRef.set({
         id: newRef.key,
@@ -461,6 +552,9 @@
     };
 
     document.getElementById('btnRequestBill').onclick = async () => {
+      const canProceed = await checkGpsFenceBeforeAction();
+      if (!canProceed) return;
+
       const newRef = window.db.ref('calls').push();
       await newRef.set({
         id: newRef.key,
