@@ -219,23 +219,33 @@
     return R * c; // Distance in meters
   };
 
-  // Get Current GPS Coordinates
+  // Get Current GPS Coordinates with Instant Mobile Network Fallback
   window.getUserLocation = function() {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
         reject(new Error('الجي بي إس (GPS) غير مدعوم في متصفحك!'));
         return;
       }
+
+      // 1st Attempt: Fast High Accuracy
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        (err) => {
-          let msg = 'يرجى تفعيل الـ GPS وإعطاء الإذن لتحديد موقعك.';
-          if (err.code === err.PERMISSION_DENIED) msg = 'تم رفض إذن الوصول للموقع الجغرافي. يرجى تفعيله في إعدادات الهاتف/المتصفح.';
-          else if (err.code === err.POSITION_UNAVAILABLE) msg = 'تعذر تحديد موقعك الجغرافي حالياً.';
-          else if (err.code === err.TIMEOUT) msg = 'انتهت مهلة استجابة الـ GPS.';
-          reject(new Error(msg));
+        (errHigh) => {
+          console.warn('GPS High Accuracy failed or timed out, trying network geolocation fallback...', errHigh);
+          // 2nd Attempt: Instant Network / WiFi Geolocation Fallback
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            (errLow) => {
+              let msg = 'يرجى تفعيل خدمة الموقع الجغرافي بالهاتف وإعطاء الإذن للمتصفح.';
+              if (errLow.code === errLow.PERMISSION_DENIED) msg = 'تم رفض إذن الوصول للموقع الجغرافي. يرجى السماح للمتصفح بالوصول للموقع في إعدادات الهاتف.';
+              else if (errLow.code === errLow.POSITION_UNAVAILABLE) msg = 'تعذر تحديد موقعك الجغرافي حالياً. أعد تفعيل الـ GPS في الهاتف.';
+              else if (errLow.code === errLow.TIMEOUT) msg = 'انتهت مهلة الاستجابة. يرجى التأكد من تشغيل الـ GPS بالهاتف وإعادة المحاولة.';
+              reject(new Error(msg));
+            },
+            { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+          );
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 30000 }
       );
     });
   };
