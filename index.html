@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>القائمة الإلكترونية - QR Restaurant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/app.js"></script>
+</head>
+
+<body class="bg-[#0b0f19] text-slate-100 min-h-screen pb-28 font-cairo">
+
+  <!-- Header -->
+  <header class="bg-[#151c2c]/90 border-b border-slate-800/80 sticky top-0 z-40 backdrop-blur-md px-4 py-3.5">
+    <div class="max-w-md mx-auto flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div
+          class="w-11 h-11 bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-600 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg shadow-orange-950/50">
+          🍔
+        </div>
+        <div>
+          <h1 id="restaurantNameHeader" data-i18n="restaurant_name"
+            class="font-extrabold text-base text-white tracking-wide">QR Restaurant</h1>
+          <div class="flex items-center gap-1.5 mt-0.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <p id="tableBadge" class="text-xs text-orange-400 font-bold"><span data-i18n="order_from_table">طاولة</span>
+              #<span id="lblTableNum">1</span></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <select id="langSelect"
+          class="bg-slate-900 border border-slate-700/80 text-[11px] font-bold py-1.5 px-2.5 rounded-xl text-white outline-none focus:border-orange-500">
+          <option value="ar">🇸🇦 العربية</option>
+          <option value="fr">🇫🇷 FR</option>
+          <option value="en">🇬🇧 EN</option>
+        </select>
+
+
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto p-4 space-y-5">
+
+    <!-- Hero Banner (مماثل لـ Banner الصورة 1 و 2) -->
+    <div
+      class="relative overflow-hidden rounded-3xl bg-gradient-to-l from-orange-500 via-rose-500 to-orange-600 p-5 text-white shadow-xl shadow-orange-950/30">
+      <div class="relative z-10 w-2/3 space-y-1.5">
+        <span
+          class="inline-block px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-black uppercase">عروض
+          حصرية</span>
+        <h2 class="text-lg font-black leading-tight">استمتع بأشهى المأكولات الطازجة</h2>
+        <p class="text-[11px] text-white/90 font-semibold">اطلب مباشرة من طاولتك وسيتكفل المطبخ بالباقي!</p>
+      </div>
+      <div class="absolute -left-4 -bottom-4 w-32 h-32 opacity-90 drop-shadow-2xl">
+        <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400" alt="Special Dish"
+          class="w-full h-full object-cover rounded-full border-2 border-white/30">
+      </div>
+    </div>
+
+    <!-- Active Customer Order Tracker Card -->
+    <section id="customerActiveOrderSection"
+      class="hidden bg-[#151c2c] border border-orange-500/40 rounded-3xl p-4 shadow-xl space-y-3">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2.5">
+        <div>
+          <span data-i18n="live_order_status" class="text-[11px] text-orange-400 font-bold">حالة طلبك المباشرة</span>
+          <h3 id="activeOrderIdText" class="font-black text-sm text-white">طلب #---</h3>
+        </div>
+        <span id="activeOrderStatusBadge"
+          class="px-3 py-1 rounded-xl text-xs font-black bg-orange-500/20 border border-orange-500/40 text-orange-300">
+          قيد التحضير
+        </span>
+      </div>
+
+      <div id="activeOrderItemsList" class="space-y-1.5 text-xs font-semibold text-slate-300"></div>
+
+      <div class="pt-2 flex justify-between items-center border-t border-slate-800 font-black text-sm text-white">
+        <span data-i18n="final_total">الإجمالي النهائي:</span>
+        <span id="activeOrderTotalText" class="text-orange-400 font-black">0.00 د.ج</span>
+      </div>
+    </section>
+
+    <!-- Quick Call Buttons -->
+    <section class="grid grid-cols-2 gap-3">
+      <button id="btnCallWaiter"
+        class="p-3 bg-[#151c2c] hover:bg-slate-800 border border-amber-500/30 text-amber-300 rounded-2xl font-black text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md">
+        <span class="text-base">🛎️</span>
+        <span data-i18n="call_waiter">استدعاء النادل</span>
+      </button>
+      <button id="btnRequestBill"
+        class="p-3 bg-[#151c2c] hover:bg-slate-800 border border-rose-500/30 text-rose-300 rounded-2xl font-black text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md">
+        <span class="text-base">💳</span>
+        <span data-i18n="request_bill">طلب الحساب</span>
+      </button>
+    </section>
+
+    <!-- Categories Horizontal Scroll (Pill Shape With Icons) -->
+    <div class="space-y-2">
+      <div class="flex justify-between items-center px-1">
+        <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider">التصنيفات</h3>
+      </div>
+      <nav class="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none" id="categoriesBar">
+        <button data-cat="ALL" data-i18n="all"
+          class="cat-btn active py-2 px-4 bg-gradient-to-r from-orange-500 to-rose-600 text-white rounded-2xl font-black text-xs shadow-md whitespace-nowrap">
+          الكل
+        </button>
+      </nav>
+    </div>
+
+    <!-- Products Grid (Card Design Like Image 2) -->
+    <div class="space-y-2">
+      <div class="flex justify-between items-center px-1">
+        <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider">الوجبات الموصى بها</h3>
+      </div>
+      <section id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+      </section>
+    </div>
+  </main>
+
+  <!-- Sticky Bottom View Cart Floating Bar -->
+  <div id="stickyCartBar" class="hidden fixed bottom-4 left-4 right-4 max-w-md mx-auto z-40">
+    <button id="btnOpenCartModal"
+      class="w-full py-3.5 px-5 bg-gradient-to-r from-orange-500 via-rose-500 to-orange-600 text-white font-black text-sm rounded-2xl shadow-2xl shadow-rose-950/60 flex justify-between items-center active:scale-95 transition-all">
+      <div class="flex items-center gap-3">
+        <span id="cartBadgeCount"
+          class="w-7 h-7 bg-white text-rose-600 rounded-xl flex items-center justify-center text-xs font-black shadow">0</span>
+        <span data-i18n="view_cart">عرض السلة 🛍️</span>
+      </div>
+      <span id="cartBarTotal" class="text-base font-black">0.00 د.ج</span>
+    </button>
+  </div>
+
+  <!-- Cart Modal -->
+  <div id="cartModal"
+    class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4">
+    <div
+      class="bg-[#151c2c] border border-slate-800 rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col justify-between text-white">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 data-i18n="cart_title" class="font-black text-base text-white flex items-center gap-2">
+          <span>🛒</span> <span>سلة الطلبات</span>
+        </h3>
+        <button id="btnCloseCartModal"
+          class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white text-sm font-bold">✕</button>
+      </div>
+
+      <div id="cartItemsContainer" class="space-y-2.5 overflow-y-auto max-h-64 pr-1"></div>
+
+      <div class="space-y-3 border-t border-slate-800 pt-3">
+        <div>
+          <label data-i18n="order_notes" class="block text-xs font-black text-slate-400 mb-1">ملاحظات الطلب</label>
+          <input type="text" id="orderNotesInput" data-i18n-placeholder="order_notes_placeholder"
+            placeholder="ملاحظات (مثلاً: تجهيز سريع، إحضار مناديل)..."
+            class="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white outline-none focus:border-orange-500">
+        </div>
+
+        <div class="flex justify-between items-center text-sm font-black text-white pt-1">
+          <span data-i18n="cart_total">الإجمالي:</span>
+          <span id="cartModalTotal" class="text-lg text-orange-400">0.00 د.ج</span>
+        </div>
+
+        <button id="btnSubmitOrder" data-i18n="submit_order"
+          class="w-full py-3.5 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white font-black text-xs rounded-xl shadow-lg shadow-orange-950/40 active:scale-95 transition-all">
+          تأكيد وإرسال الطلب 🚀
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const langSelect = document.getElementById('langSelect');
+    langSelect.value = window.getCurrentLang();
+    window.applyTranslations();
+
+    langSelect.addEventListener('change', (e) => {
+      window.setLang(e.target.value);
+      window.applyTranslations();
+      renderCategories();
+      renderProducts();
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const tableNum = parseInt(urlParams.get('table') || '1', 10);
+    document.getElementById('lblTableNum').textContent = tableNum;
+
+    let categories = {};
+    let products = {};
+    let cart = [];
+    let activeCat = 'ALL';
+    let currencySymbol = 'د.ج';
+    let activeCustomerOrder = null;
+
+    window.db.ref('settings').on('value', (snap) => {
+      const s = snap.val() || {};
+      if (s.currency) currencySymbol = s.currency;
+    });
+
+    window.db.ref('categories').on('value', (snap) => {
+      categories = snap.val() || {};
+      renderCategories();
+    });
+
+    window.db.ref('products').on('value', (snap) => {
+      products = snap.val() || {};
+      renderProducts();
+    });
+
+    window.db.ref('orders').on('value', (snap) => {
+      const ordersObj = snap.val() || {};
+      const tableOrders = Object.values(ordersObj).filter(o =>
+        o.table_number === tableNum && o.status !== 'PAID' && o.status !== 'CANCELLED'
+      );
+
+      if (tableOrders.length > 0) {
+        activeCustomerOrder = tableOrders[tableOrders.length - 1];
+        renderActiveCustomerOrder();
+      } else {
+        activeCustomerOrder = null;
+        document.getElementById('customerActiveOrderSection').classList.add('hidden');
+      }
+    });
+
+    function renderCategories() {
+      const bar = document.getElementById('categoriesBar');
+      bar.innerHTML = `<button data-cat="ALL" data-i18n="all" class="cat-btn ${activeCat === 'ALL' ? 'active bg-gradient-to-r from-orange-500 to-rose-600 text-white' : 'bg-[#151c2c] text-slate-300 border border-slate-800'} py-2 px-4 rounded-2xl font-black text-xs shadow-md">${window.t('all')}</button>`;
+
+      Object.values(categories).forEach(c => {
+        const localizedCatName = window.getLocalizedText(c, 'name') || c.name || '';
+        const btn = document.createElement('button');
+        btn.dataset.cat = c.id;
+        btn.className = `cat-btn ${activeCat === c.id ? 'active bg-gradient-to-r from-orange-500 to-rose-600 text-white' : 'bg-[#151c2c] text-slate-300 border border-slate-800'} py-2 px-4 rounded-2xl font-black text-xs shadow-md whitespace-nowrap`;
+        btn.textContent = localizedCatName;
+        bar.appendChild(btn);
+      });
+
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.onclick = () => {
+          activeCat = btn.dataset.cat;
+          renderCategories();
+          renderProducts();
+        };
+      });
+    }
+
+    function renderProducts() {
+      const grid = document.getElementById('productsGrid');
+      grid.innerHTML = '';
+
+      const items = Object.values(products).filter(p => {
+        if (activeCat === 'ALL') return true;
+        return p.category_id === activeCat;
+      });
+
+      items.forEach(p => {
+        const localizedProdName = window.getLocalizedText(p, 'name') || p.name || '';
+        const localizedProdDesc = window.getLocalizedText(p, 'description') || p.description || '';
+
+        const div = document.createElement('div');
+        div.className = 'bg-[#151c2c] border border-slate-800/80 rounded-3xl p-3 shadow-lg flex flex-col justify-between space-y-3 brand-card-hover';
+        div.innerHTML = `
+          <div class="space-y-2.5">
+            <div class="relative w-full h-36 rounded-2xl overflow-hidden bg-slate-900">
+              <img src="${p.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500'}" class="w-full h-full object-cover">
+              <span class="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-md text-[11px] font-black text-orange-400">
+                ${p.price} ${currencySymbol}
+              </span>
+            </div>
+            <div>
+              <h3 class="font-black text-xs text-white leading-snug">${localizedProdName}</h3>
+              <p class="text-[10px] text-slate-400 font-semibold line-clamp-2 mt-0.5">${localizedProdDesc}</p>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-800/60 flex justify-between items-center">
+            <div class="flex items-center text-amber-400 text-[10px] gap-1 font-bold">
+              <span>★ 4.9</span>
+            </div>
+            <button onclick="window.addToCart('${p.id}')" class="py-1.5 px-3 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white font-black text-[11px] rounded-xl shadow-md active:scale-90 transition-all flex items-center gap-1">
+              <span>+</span>
+              <span>${window.t('add_to_cart')}</span>
+            </button>
+          </div>
+        `;
+        grid.appendChild(div);
+      });
+    }
+
+    window.addToCart = function (productId) {
+      const prod = products[productId];
+      if (!prod) return;
+
+      const localizedProdName = window.getLocalizedText(prod, 'name') || prod.name || '';
+
+      const existing = cart.find(i => i.product_id === productId);
+      if (existing) {
+        existing.quantity += 1;
+        existing.subtotal = existing.quantity * existing.price;
+      } else {
+        cart.push({
+          product_id: productId,
+          product_name: localizedProdName,
+          price: prod.price,
+          quantity: 1,
+          subtotal: prod.price,
+          notes: ''
+        });
+      }
+
+      updateCartBar();
+    };
+
+    function updateCartBar() {
+      const stickyBar = document.getElementById('stickyCartBar');
+      if (cart.length === 0) {
+        stickyBar.classList.add('hidden');
+        return;
+      }
+
+      const totalQty = cart.reduce((sum, i) => sum + i.quantity, 0);
+      const totalSum = cart.reduce((sum, i) => sum + i.subtotal, 0);
+
+      document.getElementById('cartBadgeCount').textContent = totalQty;
+      document.getElementById('cartBarTotal').textContent = `${totalSum.toFixed(2)} ${currencySymbol}`;
+      stickyBar.classList.remove('hidden');
+    }
+
+    document.getElementById('btnOpenCartModal').onclick = () => {
+      renderCartModal();
+      document.getElementById('cartModal').classList.remove('hidden');
+    };
+
+    document.getElementById('btnCloseCartModal').onclick = () => {
+      document.getElementById('cartModal').classList.add('hidden');
+    };
+
+    function renderCartModal() {
+      const container = document.getElementById('cartItemsContainer');
+      container.innerHTML = '';
+
+      cart.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'bg-slate-900 p-2.5 rounded-2xl border border-slate-800 space-y-2';
+        div.innerHTML = `
+          <div class="flex justify-between items-center">
+            <span class="font-black text-xs text-white">${item.product_name}</span>
+            <span class="font-black text-xs text-orange-400">${item.subtotal} ${currencySymbol}</span>
+          </div>
+
+          <div class="flex justify-between items-center gap-2">
+            <input type="text" value="${item.notes || ''}" onchange="window.updateItemNotes(${index}, this.value)"
+              placeholder="${window.t('item_notes_placeholder')}" class="p-1.5 bg-slate-950 border border-slate-800 rounded-xl text-[10px] text-white flex-1 outline-none">
+
+            <div class="flex items-center gap-2 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800">
+              <button onclick="window.changeQty(${index}, -1)" class="w-5 h-5 bg-slate-800 text-white rounded font-black text-xs flex items-center justify-center">-</button>
+              <span class="text-xs font-black text-white">${item.quantity}</span>
+              <button onclick="window.changeQty(${index}, 1)" class="w-5 h-5 bg-orange-600 text-white rounded font-black text-xs flex items-center justify-center">+</button>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      const totalSum = cart.reduce((sum, i) => sum + i.subtotal, 0);
+      document.getElementById('cartModalTotal').textContent = `${totalSum.toFixed(2)} ${currencySymbol}`;
+    }
+
+    window.changeQty = function (index, delta) {
+      cart[index].quantity += delta;
+      if (cart[index].quantity <= 0) {
+        cart.splice(index, 1);
+      } else {
+        cart[index].subtotal = cart[index].quantity * cart[index].price;
+      }
+      updateCartBar();
+      renderCartModal();
+    };
+
+    window.updateItemNotes = function (index, notes) {
+      cart[index].notes = notes;
+    };
+
+    document.getElementById('btnSubmitOrder').onclick = async () => {
+      if (cart.length === 0) return;
+
+      const totalSum = cart.reduce((sum, i) => sum + i.subtotal, 0);
+      const notes = document.getElementById('orderNotesInput').value.trim();
+
+      const newOrderRef = window.db.ref('orders').push();
+      const newOrder = {
+        id: newOrderRef.key,
+        table_number: tableNum,
+        items: cart,
+        total_amount: totalSum,
+        status: 'NEW',
+        notes: notes,
+        created_at: Date.now()
+      };
+
+      await newOrderRef.set(newOrder);
+
+      cart = [];
+      updateCartBar();
+      document.getElementById('cartModal').classList.add('hidden');
+      alert(window.t('order_success_title'));
+    };
+
+    function renderActiveCustomerOrder() {
+      if (!activeCustomerOrder) return;
+
+      const sec = document.getElementById('customerActiveOrderSection');
+      document.getElementById('activeOrderIdText').textContent = `طلب #${activeCustomerOrder.id.slice(-5)}`;
+      document.getElementById('activeOrderStatusBadge').textContent = window.t(`status_${activeCustomerOrder.status}`);
+      document.getElementById('activeOrderTotalText').textContent = `${activeCustomerOrder.total_amount} ${currencySymbol}`;
+
+      const itemsList = document.getElementById('activeOrderItemsList');
+      itemsList.innerHTML = activeCustomerOrder.items.map(i => `
+        <div class="flex justify-between">
+          <span>${i.quantity}x ${i.product_name}</span>
+          <span class="font-bold text-white">${i.subtotal} ${currencySymbol}</span>
+        </div>
+      `).join('');
+
+      sec.classList.remove('hidden');
+    }
+
+    document.getElementById('btnCallWaiter').onclick = async () => {
+      const newRef = window.db.ref('calls').push();
+      await newRef.set({
+        id: newRef.key,
+        table_number: tableNum,
+        type: 'call_waiter',
+        created_at: Date.now()
+      });
+      alert(window.t('call_waiter_sent'));
+    };
+
+    document.getElementById('btnRequestBill').onclick = async () => {
+      const newRef = window.db.ref('calls').push();
+      await newRef.set({
+        id: newRef.key,
+        table_number: tableNum,
+        type: 'request_bill',
+        created_at: Date.now()
+      });
+      alert(window.t('request_bill_sent'));
+    };
+  </script>
+</body>
+
+</html>
