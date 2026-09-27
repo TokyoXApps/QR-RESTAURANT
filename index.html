@@ -5,7 +5,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>القائمة الإلكترونية - QR Restaurant</title>
+  
+  <!-- Google Fonts Cairo -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            cairo: ['Cairo', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
   <link rel="stylesheet" href="css/style.css">
 
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -188,7 +205,8 @@
     });
 
     const urlParams = new URLSearchParams(window.location.search);
-    const tableNum = parseInt(urlParams.get('table') || '1', 10);
+    const rawTable = urlParams.get('table');
+    const tableNum = (rawTable && !isNaN(parseInt(rawTable, 10))) ? parseInt(rawTable, 10) : 1;
     document.getElementById('lblTableNum').textContent = tableNum;
 
     let categories = {};
@@ -216,7 +234,7 @@
     window.db.ref('orders').on('value', (snap) => {
       const ordersObj = snap.val() || {};
       const tableOrders = Object.values(ordersObj).filter(o =>
-        o.table_number === tableNum && o.status !== 'PAID' && o.status !== 'CANCELLED'
+        String(o.table_number) === String(tableNum) && o.status !== 'PAID' && o.status !== 'CANCELLED'
       );
 
       if (tableOrders.length > 0) {
