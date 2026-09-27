@@ -219,9 +219,31 @@
     return R * c; // Distance in meters
   };
 
-  // Get Current GPS Coordinates with Instant Cache & Ultra-Fast Mobile Mode
-  let cachedUserPos = null;
-  let lastPosTime = 0;
+  // Get Current GPS Coordinates with Persistent LocalStorage Cache (30 min retention)
+  function saveGpsToStorage(pos) {
+    try {
+      localStorage.setItem('qr_verified_gps', JSON.stringify({
+        lat: pos.lat,
+        lng: pos.lng,
+        time: Date.now()
+      }));
+    } catch(e){}
+  }
+
+  function loadGpsFromStorage() {
+    try {
+      const data = localStorage.getItem('qr_verified_gps');
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed.lat && parsed.lng && (Date.now() - parsed.time < 1800000)) { // 30 minutes validity
+          return { lat: parsed.lat, lng: parsed.lng };
+        }
+      }
+    } catch(e){}
+    return null;
+  }
+
+  let cachedUserPos = loadGpsFromStorage();
 
   window.getUserLocation = function(forceRefresh = false) {
     return new Promise((resolve, reject) => {
@@ -230,16 +252,20 @@
         return;
       }
 
-      // Return cached position instantly if retrieved within the last 3 minutes
-      if (!forceRefresh && cachedUserPos && (Date.now() - lastPosTime < 180000)) {
-        return resolve(cachedUserPos);
+      // Check persistent memory (localStorage) first if fresh (< 30 mins)
+      if (!forceRefresh) {
+        const stored = loadGpsFromStorage();
+        if (stored) {
+          cachedUserPos = stored;
+          return resolve(cachedUserPos);
+        }
       }
 
-      // Fast Mobile Mode: Low Accuracy Network/WiFi first (0-100ms response), fallback to high accuracy
+      // Fast Mobile Mode: Network/WiFi location first, fallback to satellite high accuracy
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           cachedUserPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          lastPosTime = Date.now();
+          saveGpsToStorage(cachedUserPos);
           resolve(cachedUserPos);
         },
         (errLow) => {
@@ -247,7 +273,7 @@
           navigator.geolocation.getCurrentPosition(
             (pos) => {
               cachedUserPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-              lastPosTime = Date.now();
+              saveGpsToStorage(cachedUserPos);
               resolve(cachedUserPos);
             },
             (errHigh) => {
@@ -257,10 +283,10 @@
               else if (errHigh.code === errHigh.TIMEOUT) msg = 'انتهت مهلة الاستجابة. يرجى التأكد من تشغيل الـ GPS بالهاتف وإعادة المحاولة.';
               reject(new Error(msg));
             },
-            { enableHighAccuracy: true, timeout: 5000, maximumAge: 300000 }
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 1800000 }
           );
         },
-        { enableHighAccuracy: false, timeout: 3000, maximumAge: 300000 }
+        { enableHighAccuracy: false, timeout: 3000, maximumAge: 1800000 }
       );
     });
   };
