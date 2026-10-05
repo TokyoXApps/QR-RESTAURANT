@@ -1,612 +1,745 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>القائمة الإلكترونية - QR Restaurant</title>
-  
-  <!-- Google Fonts Cairo -->
+  <title>بوابة الموظفين الموحدة - QR Restaurant Universal Staff Portal</title>
+  <!-- Tailwind CSS CDN -->
+  <script>(function(){var w=console.warn;console.warn=function(){if(arguments[0]&&typeof arguments[0]==='string'&&arguments[0].indexOf('cdn.tailwindcss.com')!==-1)return;return w.apply(console,arguments);};})();</script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Cairo & Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
-
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            cairo: ['Cairo', 'sans-serif'],
-          }
-        }
-      }
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;700;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+  <!-- Firebase Compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <!-- jsQR Library for Camera Scanning -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    html[lang="ar"] * { font-family: 'Cairo', sans-serif; }
+    html[lang="fr"] *, html[lang="en"] * { font-family: 'Plus Jakarta Sans', 'Cairo', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes scanLaser {
+      0% { top: 0%; opacity: 0.8; }
+      50% { top: 96%; opacity: 1; }
+      100% { top: 0%; opacity: 0.8; }
     }
-  </script>
-  <link rel="stylesheet" href="css/style.css">
-
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-  <script src="js/firebase-config.js"></script>
-  <script src="js/i18n.js"></script>
-  <script src="js/app.js"></script>
+    .scanner-laser {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #2dd4bf, transparent);
+      box-shadow: 0 0 12px #2dd4bf;
+      animation: scanLaser 2.2s infinite ease-in-out;
+    }
+  </style>
 </head>
-
-<body class="bg-[#0b0f19] text-slate-100 min-h-screen pb-28 font-cairo relative">
-
-  <!-- IP / Device Block Overlay -->
-  <div id="ipBlockOverlay" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-xl p-6 text-center space-y-4">
-    <div class="w-20 h-20 bg-rose-500/20 text-rose-500 rounded-3xl flex items-center justify-center text-4xl border border-rose-500/40 shadow-2xl">
-      🚫
-    </div>
-    <h2 class="text-2xl font-black text-white">تـم حظر دخولك من إدارة المطعم!</h2>
-    <p class="text-xs font-bold text-slate-300 max-w-xs leading-relaxed">
-      عذراً، تم حظر استخدام هذا الجهاز من قبل إدارة المطعم لمخالفة شروط الخدمة أو إساءة الاستخدام.
-    </p>
-    <div class="p-3 bg-slate-900 border border-slate-800 rounded-2xl text-[11px] font-mono text-slate-400">
-      ID / IP: <span id="blockedDevId" class="text-rose-400 font-bold">---</span>
-    </div>
-  </div>
-
-  <!-- GPS Verification Loading Modal -->
-  <div id="gpsCheckingModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md transition-all duration-300">
-    <div class="bg-[#151c2c] border border-slate-800 rounded-3xl max-w-xs w-full p-6 shadow-2xl space-y-4 text-center">
-      <div class="relative w-16 h-16 mx-auto flex items-center justify-center">
-        <div class="absolute inset-0 rounded-2xl bg-orange-500/20 animate-ping"></div>
-        <div class="w-16 h-16 bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-600 text-white rounded-2xl flex items-center justify-center text-3xl shadow-lg shadow-orange-950/50">
-          📍
+<body class="bg-[#0b0f19] text-slate-100 min-h-screen select-none flex flex-col justify-between">
+  <!-- Top App Bar -->
+  <header class="sticky top-0 z-40 bg-[#0f172a]/95 backdrop-blur-md border-b border-slate-800 px-4 py-3 shadow-lg">
+    <div class="max-w-4xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-600 flex items-center justify-center text-white text-lg font-black shadow-md shrink-0">
+          📱
         </div>
-      </div>
-      <div class="space-y-1">
-        <h3 id="gpsModalTitle" class="font-black text-sm text-white">جاري التحقق من موقعك...</h3>
-        <p id="gpsModalSub" class="text-xs text-slate-300 font-semibold leading-relaxed">يرجى تشغيل الـ GPS ومنح الإذن للمتصفح إذا طُلب ذلك لتأكيد تواجدك بالمطعم.</p>
-      </div>
-      <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
-        <div id="gpsProgressBar" class="bg-gradient-to-r from-orange-500 to-rose-500 h-full w-2/3 animate-pulse"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Header -->
-  <header class="bg-[#151c2c]/90 border-b border-slate-800/80 sticky top-0 z-40 backdrop-blur-md px-4 py-3.5">
-    <div class="w-full max-w-2xl mx-auto flex justify-between items-center">
-      <div class="flex items-center gap-3">
-        <div
-          class="w-11 h-11 bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-600 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg shadow-orange-950/50">
-          🍔
-        </div>
-        <div>
-          <h1 id="restaurantNameHeader" data-i18n="restaurant_name"
-            class="font-extrabold text-base text-white tracking-wide">QR Restaurant</h1>
-          <div class="flex items-center gap-1.5 mt-0.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <p id="tableBadge" class="text-xs text-orange-400 font-bold"><span data-i18n="order_from_table">طاولة</span>
-              #<span id="lblTableNum">1</span></p>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h1 id="portalHeaderTitle" class="font-black text-sm sm:text-base text-white leading-tight truncate">بوابة الموظفين الموحدة</h1>
+            <span id="portalHeaderBadge" class="hidden px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold"></span>
           </div>
+          <p id="portalHeaderSub" class="text-[11px] text-teal-400 font-medium">صالحة لجميع المطابخ والنوادل والكاشير</p>
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <select id="langSelect"
-          class="bg-slate-900 border border-slate-700/80 text-[11px] font-bold py-1.5 px-2.5 rounded-xl text-white outline-none focus:border-orange-500">
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Language Switcher -->
+        <select id="langSelect" onchange="changeLanguage(this.value)" class="bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold rounded-xl px-2 py-1.5 outline-none focus:border-teal-500 cursor-pointer">
           <option value="ar">🇸🇦 العربية</option>
-          <option value="fr">🇫🇷 FR</option>
-          <option value="en">🇬🇧 EN</option>
+          <option value="fr">🇫🇷 Français</option>
+          <option value="en">🇬🇧 English</option>
         </select>
+
+        <!-- Unlink Button (Visible when paired) -->
+        <button id="unlinkBtn" onclick="handleUnlinkRestaurant()" class="hidden px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-300 border border-slate-700 rounded-xl text-xs font-bold transition">
+          تبديل المطعم
+        </button>
       </div>
     </div>
   </header>
 
-  <main class="w-full max-w-2xl mx-auto p-4 space-y-5">
+  <!-- Main Container -->
+  <main class="flex-1 max-w-4xl w-full mx-auto p-4 flex flex-col justify-center">
 
-    <!-- Hero Banner (مماثل لـ Banner الصورة 1 و 2) -->
-    <div
-      class="relative overflow-hidden rounded-3xl bg-gradient-to-l from-orange-500 via-rose-500 to-orange-600 p-5 text-white shadow-xl shadow-orange-950/30">
-      <div class="relative z-10 w-2/3 space-y-1.5">
-        <span
-          class="inline-block px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-black uppercase">عروض
-          حصرية</span>
-        <h2 class="text-lg font-black leading-tight">استمتع بأشهى المأكولات الطازجة</h2>
-        <p class="text-[11px] text-white/90 font-semibold">اطلب مباشرة من طاولتك وسيتكفل المطبخ بالباقي!</p>
-      </div>
-      <div class="absolute -left-4 -bottom-4 w-32 h-32 opacity-90 drop-shadow-2xl">
-        <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400" alt="Special Dish"
-          class="w-full h-full object-cover rounded-full border-2 border-white/30">
-      </div>
-    </div>
-
-    <!-- Active Customer Order Tracker Card -->
-    <section id="customerActiveOrderSection"
-      class="hidden bg-[#151c2c] border border-orange-500/40 rounded-3xl p-4 shadow-xl space-y-3">
-      <div class="flex justify-between items-center border-b border-slate-800 pb-2.5">
-        <div>
-          <span data-i18n="live_order_status" class="text-[11px] text-orange-400 font-bold">حالة طلبك المباشرة</span>
-          <h3 id="activeOrderIdText" class="font-black text-sm text-white">طلب #---</h3>
+    <!-- ========================================== -->
+    <!-- PHASE 1: Central Restaurant Email Check    -->
+    <!-- ========================================== -->
+    <div id="stepEmailContainer" class="max-w-md w-full mx-auto bg-[#151c2c] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+      <div class="text-center space-y-2">
+        <div class="w-14 h-14 bg-gradient-to-tr from-teal-500 to-emerald-600 rounded-2xl mx-auto flex items-center justify-center text-2xl shadow-xl shadow-teal-950/50">
+          🏢
         </div>
-        <span id="activeOrderStatusBadge"
-          class="px-3 py-1 rounded-xl text-xs font-black bg-orange-500/20 border border-orange-500/40 text-orange-300">
-          قيد التحضير
-        </span>
+        <h2 class="text-xl font-black text-white">التحقق من حساب المطعم</h2>
+        <p class="text-xs text-slate-400 leading-relaxed font-semibold">
+          أدخل البريد الإلكتروني المعتمد للمطعم للتحقق من نشاطه في المنظومة المركزية
+        </p>
       </div>
 
-      <div id="activeOrderItemsList" class="space-y-1.5 text-xs font-semibold text-slate-300"></div>
+      <form id="emailForm" onsubmit="handleVerifyEmail(event)" class="space-y-4">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-black text-slate-300">البريد الإلكتروني للمطعم *</label>
+          <input
+            type="email"
+            id="restaurantEmailInput"
+            required
+            dir="ltr"
+            placeholder="owner@restaurant.com"
+            class="w-full p-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-bold text-white outline-none focus:border-teal-500 placeholder:text-slate-600"
+          />
+        </div>
 
-      <div class="pt-2 flex justify-between items-center border-t border-slate-800 font-black text-sm text-white">
-        <span data-i18n="final_total">الإجمالي النهائي:</span>
-        <span id="activeOrderTotalText" class="text-orange-400 font-black">0.00 د.ج</span>
-      </div>
-    </section>
+        <div id="emailErrorMsg" class="hidden p-3 bg-rose-500/15 border border-rose-500/30 rounded-xl text-rose-300 text-xs font-bold flex items-center gap-2">
+          <span>⚠️</span>
+          <span id="emailErrorText"></span>
+        </div>
 
-    <!-- Quick Call Buttons -->
-    <section class="grid grid-cols-2 gap-3">
-      <button id="btnCallWaiter"
-        class="p-3 bg-[#151c2c] hover:bg-slate-800 border border-amber-500/30 text-amber-300 rounded-2xl font-black text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md">
-        <span class="text-base">🛎️</span>
-        <span data-i18n="call_waiter">استدعاء النادل</span>
-      </button>
-      <button id="btnRequestBill"
-        class="p-3 bg-[#151c2c] hover:bg-slate-800 border border-rose-500/30 text-rose-300 rounded-2xl font-black text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md">
-        <span class="text-base">💳</span>
-        <span data-i18n="request_bill">طلب الحساب</span>
-      </button>
-    </section>
-
-    <!-- Categories Horizontal Scroll (Pill Shape With Icons) -->
-    <div class="space-y-2">
-      <div class="flex justify-between items-center px-1">
-        <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider">التصنيفات</h3>
-      </div>
-      <nav class="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none" id="categoriesBar">
-        <button data-cat="ALL" data-i18n="all"
-          class="cat-btn active py-2 px-4 bg-gradient-to-r from-orange-500 to-rose-600 text-white rounded-2xl font-black text-xs shadow-md whitespace-nowrap">
-          الكل
+        <button
+          type="submit"
+          id="emailSubmitBtn"
+          class="w-full py-3.5 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-black text-xs rounded-2xl shadow-xl shadow-teal-950/50 transition active:scale-95 flex items-center justify-center gap-2"
+        >
+          <span>التحقق المركزي والمتابعة لمسح QR</span>
+          <span>&rarr;</span>
         </button>
-      </nav>
+      </form>
     </div>
 
-    <!-- Products Grid (Card Design Like Image 2) -->
-    <div class="space-y-2">
-      <div class="flex justify-between items-center px-1">
-        <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider">الوجبات الموصى بها</h3>
+    <!-- ========================================== -->
+    <!-- PHASE 2: Live Camera QR Scan / File Upload -->
+    <!-- ========================================== -->
+    <div id="stepCameraContainer" class="hidden max-w-md w-full mx-auto bg-[#151c2c] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
+      <!-- Verified Account Badge -->
+      <div class="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-300">
+        <span class="text-base">✅</span>
+        <div class="min-w-0">
+          <span id="verifiedRestName" class="font-black block truncate">تم التحقق من المطعم</span>
+          <span id="verifiedRestEmail" class="text-[10px] text-slate-400 block truncate" dir="ltr"></span>
+        </div>
       </div>
-      <section id="productsGrid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-      </section>
+
+      <div class="text-center space-y-1">
+        <h3 class="font-black text-base text-white">امسح كود التحقق (QR Code)</h3>
+        <p class="text-xs text-slate-400 leading-relaxed font-semibold">
+          تجد هذا الرمز في شاشة الطباخ، شاشة الكاشير، أو لوحة الإدارة
+        </p>
+      </div>
+
+      <!-- Camera Viewfinder -->
+      <div class="relative aspect-square max-w-[270px] mx-auto bg-black rounded-2xl overflow-hidden border-2 border-teal-500/50 shadow-2xl flex items-center justify-center">
+        <video id="qrVideo" class="w-full h-full object-cover" autoplay playsinline muted></video>
+        <canvas id="qrCanvas" class="hidden"></canvas>
+
+        <!-- Viewfinder Corners -->
+        <div class="absolute inset-0 border-2 border-teal-400/80 rounded-2xl pointer-events-none flex items-center justify-center">
+          <div class="w-40 h-40 border-2 border-dashed border-teal-300 rounded-xl relative">
+            <div class="scanner-laser"></div>
+          </div>
+        </div>
+
+        <div id="cameraStartOverlay" class="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-4 text-center space-y-2">
+          <span class="text-3xl">📷</span>
+          <p class="text-xs text-slate-300 font-bold">انقر لتشغيل الكاميرا</p>
+          <button onclick="startCamera()" class="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-slate-950 font-black rounded-xl text-xs transition">
+            تشغيل الكاميرا الآن
+          </button>
+        </div>
+      </div>
+
+      <div id="cameraErrorMsg" class="hidden p-3 bg-amber-500/15 border border-amber-500/30 rounded-xl text-amber-300 text-xs font-bold">
+        <span id="cameraErrorText"></span>
+      </div>
+
+      <!-- Alternatives: File Upload or Manual -->
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <label class="py-2.5 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition text-center">
+          <span>📁</span>
+          <span>رفع صورة الرمز</span>
+          <input type="file" id="qrFileInput" accept="image/*" onchange="handleQrFileUpload(event)" class="hidden" />
+        </label>
+
+        <button onclick="toggleManualInput()" class="py-2.5 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition text-center">
+          <span>⌨️</span>
+          <span>إدخال يدوي</span>
+        </button>
+      </div>
+
+      <div id="manualInputBox" class="hidden p-3 bg-slate-950 rounded-2xl border border-slate-800 space-y-2">
+        <textarea id="manualPayloadInput" rows="2" dir="ltr" placeholder="الصق كود الربط أو رابط Firebase هنا..." class="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-mono text-white outline-none focus:border-teal-500"></textarea>
+        <button onclick="handleManualConfirm()" class="w-full py-2 bg-teal-600 text-slate-950 font-black rounded-xl text-xs transition">تأكيد ومتابعة</button>
+      </div>
+
+      <div class="text-center pt-2">
+        <button onclick="goToStep('email')" class="text-xs text-slate-400 hover:text-white font-bold">&larr; العودة لتغيير البريد</button>
+      </div>
     </div>
+
+    <!-- ========================================== -->
+    <!-- PHASE 3: Staff Login by Role               -->
+    <!-- ========================================== -->
+    <div id="stepLoginContainer" class="hidden max-w-md w-full mx-auto bg-[#151c2c] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
+      <div class="bg-teal-500/10 border border-teal-500/30 p-3 rounded-2xl flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="loginPairedRestName" class="font-black text-white">مطعم متصل</span>
+        </div>
+        <button onclick="goToStep('camera')" class="text-[11px] text-teal-400 hover:underline font-bold">إعادة مسح QR</button>
+      </div>
+
+      <div class="text-center space-y-1">
+        <h3 class="font-black text-base text-white">تسجيل دخول الموظف</h3>
+        <p class="text-xs text-slate-400 font-semibold">يتم فتح الواجهة تلقائياً حسب دور الموظف (طاهي / نادل / كاشير)</p>
+      </div>
+
+      <form id="staffLoginForm" onsubmit="handleStaffLogin(event)" class="space-y-4">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-black text-slate-300">اسم المستخدم *</label>
+          <input
+            type="text"
+            id="staffUsernameInput"
+            required
+            placeholder="waiter1 أو chef أو cashier"
+            class="w-full p-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-bold text-white outline-none focus:border-teal-500"
+          />
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="block text-xs font-black text-slate-300">كلمة المرور</label>
+          <input
+            type="password"
+            id="staffPasswordInput"
+            placeholder="••••"
+            class="w-full p-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-bold text-white outline-none focus:border-teal-500"
+          />
+        </div>
+
+        <div id="loginErrorMsg" class="hidden p-3 bg-rose-500/15 border border-rose-500/30 rounded-xl text-rose-300 text-xs font-bold">
+          <span id="loginErrorText"></span>
+        </div>
+
+        <button
+          type="submit"
+          class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs rounded-2xl shadow-xl shadow-emerald-950/50 transition active:scale-95 flex items-center justify-center gap-2"
+        >
+          <span>تسجيل الدخول وفتح المحطة</span>
+          <span>&rarr;</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- PHASE 4: Active Workstations               -->
+    <!-- ========================================== -->
+    <div id="activeStationContainer" class="hidden space-y-4">
+      <!-- Station Sub-Header -->
+      <div class="bg-[#151c2c] border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+        <div class="flex items-center gap-3">
+          <div id="stationRoleIcon" class="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center text-xl">👨‍🍳</div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 id="stationRoleTitle" class="text-sm sm:text-base font-black text-white">محطة العمل</h2>
+              <span id="stationRoleBadge" class="px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[10px] font-black uppercase tracking-wider">LIVE</span>
+            </div>
+            <p id="stationUserDesc" class="text-xs text-slate-400 font-semibold"></p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Chime Test -->
+          <button onclick="playChime()" class="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-amber-400 text-xs font-bold" title="اختبار الجرس">🔔</button>
+
+          <!-- Waiter Call Broadcast (Kitchen only) -->
+          <button id="callWaiterBtn" onclick="broadcastKitchenCall()" class="hidden px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-black transition flex items-center gap-1.5">
+            <span>🛎️</span>
+            <span>استدعاء النادل</span>
+          </button>
+
+          <!-- Logout Button -->
+          <button onclick="handleStaffLogout()" class="px-3 py-2 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-black transition flex items-center gap-1.5">
+            <span>🚪</span>
+            <span>تسجيل خروج</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Station Dynamic Content: Kitchen KDS or Waiter View -->
+      <div id="stationContentArea" class="space-y-4">
+        <!-- Rendered dynamically in JS -->
+      </div>
+    </div>
+
   </main>
 
-  <!-- Sticky Bottom View Cart Floating Bar -->
-  <div id="stickyCartBar" class="hidden fixed bottom-4 left-4 right-4 max-w-2xl mx-auto z-40">
-    <button id="btnOpenCartModal"
-      class="w-full py-3.5 px-5 bg-gradient-to-r from-orange-500 via-rose-500 to-orange-600 text-white font-black text-sm rounded-2xl shadow-2xl shadow-rose-950/60 flex justify-between items-center active:scale-95 transition-all">
-      <div class="flex items-center gap-3">
-        <span id="cartBadgeCount"
-          class="w-7 h-7 bg-white text-rose-600 rounded-xl flex items-center justify-center text-xs font-black shadow">0</span>
-        <span data-i18n="view_cart">عرض السلة 🛍️</span>
-      </div>
-      <span id="cartBarTotal" class="text-base font-black">0.00 د.ج</span>
-    </button>
-  </div>
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/80 bg-[#0f1626]/80 py-4 px-4 text-center text-xs text-slate-500 font-semibold">
+    QR Restaurant Cloud Suite • بوابة الموظفين المستقلة الشاملة
+  </footer>
 
-  <!-- Cart Modal -->
-  <div id="cartModal"
-    class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4">
-    <div
-      class="bg-[#151c2c] border border-slate-800 rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col justify-between text-white">
-      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 data-i18n="cart_title" class="font-black text-base text-white flex items-center gap-2">
-          <span>🛒</span> <span>سلة الطلبات</span>
-        </h3>
-        <button id="btnCloseCartModal"
-          class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white text-sm font-bold">✕</button>
-      </div>
-
-      <div id="cartItemsContainer" class="space-y-2.5 overflow-y-auto max-h-64 pr-1"></div>
-
-      <div class="space-y-3 border-t border-slate-800 pt-3">
-        <div>
-          <label data-i18n="order_notes" class="block text-xs font-black text-slate-400 mb-1">ملاحظات الطلب</label>
-          <input type="text" id="orderNotesInput" data-i18n-placeholder="order_notes_placeholder"
-            placeholder="ملاحظات (مثلاً: تجهيز سريع، إحضار مناديل)..."
-            class="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-white outline-none focus:border-orange-500">
-        </div>
-
-        <div class="flex justify-between items-center text-sm font-black text-white pt-1">
-          <span data-i18n="cart_total">الإجمالي:</span>
-          <span id="cartModalTotal" class="text-lg text-orange-400">0.00 د.ج</span>
-        </div>
-
-        <button id="btnSubmitOrder" data-i18n="submit_order"
-          class="w-full py-3.5 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white font-black text-xs rounded-xl shadow-lg shadow-orange-950/40 active:scale-95 transition-all">
-          تأكيد وإرسال الطلب 🚀
-        </button>
-      </div>
-    </div>
-  </div>
-
+  <!-- SCRIPT LOGIC -->
   <script>
-    const langSelect = document.getElementById('langSelect');
-    langSelect.value = window.getCurrentLang();
-    window.applyTranslations();
+    const CENTRAL_DB_URL = "https://serial-number-mazen-default-rtdb.firebaseio.com";
+    let currentStep = 'email';
+    let verifiedAccount = null;
+    let pairedData = null;
+    let currentStaffUser = null;
+    let db = null;
+    let videoStream = null;
+    let scanAnimFrame = null;
+    let ordersList = [];
+    let callsList = [];
+    let currentLang = 'ar';
 
-    langSelect.addEventListener('change', (e) => {
-      window.setLang(e.target.value);
-      window.applyTranslations();
-      renderCategories();
-      renderProducts();
-    });
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const rawTable = urlParams.get('table');
-    const tableNum = (rawTable && !isNaN(parseInt(rawTable, 10))) ? parseInt(rawTable, 10) : 1;
-    document.getElementById('lblTableNum').textContent = tableNum;
-
-    let categories = {};
-    let products = {};
-    let cart = [];
-    let activeCat = 'ALL';
-    let currencySymbol = 'د.ج';
-    let activeCustomerOrder = null;
-    let clientIp = 'Unknown-IP';
-    let clientDeviceId = window.getClientDeviceId ? window.getClientDeviceId() : 'DEV-UNKNOWN';
-    let blockedIpsList = {};
-    let isUserBlocked = false;
-
-    if (window.getClientIp) {
-      window.getClientIp().then(ip => {
-        clientIp = ip;
-        checkBlockStatus();
-      });
-    }
-
-    window.db.ref('blocked_ips').on('value', (snap) => {
-      blockedIpsList = snap.val() || {};
-      checkBlockStatus();
-    });
-
-    function checkBlockStatus() {
-      isUserBlocked = Object.values(blockedIpsList).some(b => 
-        (clientIp !== 'Unknown-IP' && b.target === clientIp) || (clientDeviceId && b.target === clientDeviceId)
-      );
-
-      const overlay = document.getElementById('ipBlockOverlay');
-      if (isUserBlocked) {
-        document.getElementById('blockedDevId').textContent = clientIp !== 'Unknown-IP' ? clientIp : clientDeviceId;
-        overlay.classList.remove('hidden');
-      } else {
-        overlay.classList.add('hidden');
-      }
-    }
-
-    if (window.listenGlobalSettings) {
-      window.listenGlobalSettings((s) => {
-        if (s.currency) currencySymbol = s.currency;
-        if (s.hero_banner_text) {
-          const bannerTextEl = document.querySelector('.relative.overflow-hidden.rounded-3xl h2');
-          if (bannerTextEl) bannerTextEl.textContent = s.hero_banner_text;
+    // 1. Check local stored pairing on startup
+    (function init() {
+      try {
+        const stored = localStorage.getItem('qr_portal_paired');
+        if (stored) {
+          pairedData = JSON.parse(stored);
+          if (pairedData && pairedData.databaseURL) {
+            initFirebaseConnection(pairedData.databaseURL);
+            goToStep('login');
+          }
         }
-      });
-    }
+      } catch(e) {}
+    })();
 
-    window.db.ref('categories').on('value', (snap) => {
-      categories = snap.val() || {};
-      renderCategories();
-    });
+    function goToStep(step) {
+      currentStep = step;
+      document.getElementById('stepEmailContainer').classList.toggle('hidden', step !== 'email');
+      document.getElementById('stepCameraContainer').classList.toggle('hidden', step !== 'camera');
+      document.getElementById('stepLoginContainer').classList.toggle('hidden', step !== 'login');
+      document.getElementById('activeStationContainer').classList.toggle('hidden', step !== 'active_station');
 
-    window.db.ref('products').on('value', (snap) => {
-      products = snap.val() || {};
-      renderProducts();
-    });
-
-    window.db.ref('orders').on('value', (snap) => {
-      const ordersObj = snap.val() || {};
-      const tableOrders = Object.values(ordersObj).filter(o =>
-        String(o.table_number) === String(tableNum) && o.status !== 'PAID' && o.status !== 'CANCELLED'
-      );
-
-      if (tableOrders.length > 0) {
-        activeCustomerOrder = tableOrders[tableOrders.length - 1];
-        renderActiveCustomerOrder();
-      } else {
-        activeCustomerOrder = null;
-        document.getElementById('customerActiveOrderSection').classList.add('hidden');
+      if (step !== 'camera') {
+        stopCamera();
       }
-    });
-
-    function renderCategories() {
-      const bar = document.getElementById('categoriesBar');
-      bar.innerHTML = `<button data-cat="ALL" data-i18n="all" class="cat-btn ${activeCat === 'ALL' ? 'active bg-gradient-to-r from-orange-500 to-rose-600 text-white' : 'bg-[#151c2c] text-slate-300 border border-slate-800'} py-2 px-4 rounded-2xl font-black text-xs shadow-md">${window.t('all')}</button>`;
-
-      Object.values(categories).forEach(c => {
-        const localizedCatName = window.getLocalizedText(c, 'name') || c.name || '';
-        const btn = document.createElement('button');
-        btn.dataset.cat = c.id;
-        btn.className = `cat-btn ${activeCat === c.id ? 'active bg-gradient-to-r from-orange-500 to-rose-600 text-white' : 'bg-[#151c2c] text-slate-300 border border-slate-800'} py-2 px-4 rounded-2xl font-black text-xs shadow-md whitespace-nowrap`;
-        btn.textContent = localizedCatName;
-        bar.appendChild(btn);
-      });
-
-      document.querySelectorAll('.cat-btn').forEach(btn => {
-        btn.onclick = () => {
-          activeCat = btn.dataset.cat;
-          renderCategories();
-          renderProducts();
-        };
-      });
     }
 
-    function renderProducts() {
-      const grid = document.getElementById('productsGrid');
-      grid.innerHTML = '';
+    // Step 1: Central Email Verification
+    async function handleVerifyEmail(e) {
+      if (e) e.preventDefault();
+      const emailInput = document.getElementById('restaurantEmailInput');
+      const errBox = document.getElementById('emailErrorMsg');
+      const errText = document.getElementById('emailErrorText');
+      const submitBtn = document.getElementById('emailSubmitBtn');
 
-      const items = Object.values(products).filter(p => {
-        if (activeCat === 'ALL') return true;
-        return p.category_id === activeCat;
-      });
+      const rawEmail = (emailInput.value || '').trim().toLowerCase();
+      if (!rawEmail) return;
 
-      items.forEach(p => {
-        const localizedProdName = window.getLocalizedText(p, 'name') || p.name || '';
-        const localizedProdDesc = window.getLocalizedText(p, 'description') || p.description || '';
+      errBox.classList.add('hidden');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = 'جاري التحقق المركزي... ⏳';
 
-        const div = document.createElement('div');
-        div.className = 'bg-[#151c2c] border border-slate-800/80 rounded-3xl p-3 shadow-lg flex flex-col justify-between space-y-3 brand-card-hover';
-        div.innerHTML = `
-          <div class="space-y-2.5">
-            <div class="relative w-full h-36 rounded-2xl overflow-hidden bg-slate-900">
-              <img src="${p.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500'}" class="w-full h-full object-cover">
-              <span class="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-md text-[11px] font-black text-orange-400">
-                ${p.price} ${currencySymbol}
-              </span>
-            </div>
-            <div>
-              <h3 class="font-black text-xs text-white leading-snug">${localizedProdName}</h3>
-              <p class="text-[10px] text-slate-400 font-semibold line-clamp-2 mt-0.5">${localizedProdDesc}</p>
-            </div>
-          </div>
+      try {
+        const res = await fetch(CENTRAL_DB_URL + '/accounts.json');
+        if (!res.ok) throw new Error('تعذر الاتصال بالخادم المركزي للتحقق');
+        const accounts = await res.json();
 
-          <div class="pt-2 border-t border-slate-800/60 flex justify-between items-center">
-            <div class="flex items-center text-amber-400 text-[10px] gap-1 font-bold">
-              <span>★ 4.9</span>
-            </div>
-            <button onclick="window.addToCart('${p.id}')" class="py-1.5 px-3 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white font-black text-[11px] rounded-xl shadow-md active:scale-90 transition-all flex items-center gap-1">
-              <span>+</span>
-              <span>${window.t('add_to_cart')}</span>
-            </button>
-          </div>
-        `;
-        grid.appendChild(div);
-      });
+        let matched = null;
+        for (const [key, acc] of Object.entries(accounts || {})) {
+          if (!acc) continue;
+          const accEmail = (acc.email || '').trim().toLowerCase();
+          if (accEmail === rawEmail) {
+            matched = { ...acc, firebaseKey: key };
+            break;
+          }
+        }
+
+        if (!matched) {
+          throw new Error('عذراً، هذا البريد غير مسجل في قاعدة البيانات المركزية');
+        }
+
+        if (matched.is_active === false || matched.isActive === false) {
+          throw new Error('حساب هذا المطعم معطل أو غير نشط في المنظومة المركزية');
+        }
+
+        verifiedAccount = matched;
+        document.getElementById('verifiedRestName').textContent = matched.restaurant_name || 'مطعم معتمد';
+        document.getElementById('verifiedRestEmail').textContent = rawEmail;
+
+        goToStep('camera');
+        setTimeout(startCamera, 300);
+      } catch (err) {
+        errText.textContent = err.message || 'حدث خطأ في فحص البريد';
+        errBox.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'التحقق المركزي والمتابعة لمسح QR &rarr;';
+      }
     }
 
-    window.addToCart = function (productId) {
-      const prod = products[productId];
-      if (!prod) return;
+    // Step 2: Camera & QR Scanner
+    async function startCamera() {
+      const video = document.getElementById('qrVideo');
+      const overlay = document.getElementById('cameraStartOverlay');
+      const errBox = document.getElementById('cameraErrorMsg');
+      const errText = document.getElementById('cameraErrorText');
 
-      const localizedProdName = window.getLocalizedText(prod, 'name') || prod.name || '';
-
-      const existing = cart.find(i => i.product_id === productId);
-      if (existing) {
-        existing.quantity += 1;
-        existing.subtotal = existing.quantity * existing.price;
-      } else {
-        cart.push({
-          product_id: productId,
-          product_name: localizedProdName,
-          price: prod.price,
-          quantity: 1,
-          subtotal: prod.price,
-          notes: ''
+      errBox.classList.add('hidden');
+      try {
+        stopCamera();
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
         });
+        videoStream = stream;
+        video.srcObject = stream;
+        video.setAttribute('playsinline', 'true');
+        await video.play();
+        overlay.classList.add('hidden');
+        scanLoop();
+      } catch (err) {
+        overlay.classList.remove('hidden');
+        errText.textContent = 'تعذر تشغيل الكاميرا. يمكنك رفع صورة الرمز أو إدخاله يدوياً';
+        errBox.classList.remove('hidden');
+      }
+    }
+
+    function stopCamera() {
+      if (scanAnimFrame) {
+        cancelAnimationFrame(scanAnimFrame);
+        scanAnimFrame = null;
+      }
+      if (videoStream) {
+        videoStream.getTracks().forEach(t => t.stop());
+        videoStream = null;
+      }
+      const video = document.getElementById('qrVideo');
+      if (video) video.srcObject = null;
+    }
+
+    function scanLoop() {
+      const video = document.getElementById('qrVideo');
+      const canvas = document.getElementById('qrCanvas');
+      if (!video || !canvas) return;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+      if (video.readyState === video.HAVE_ENOUGH_DATA && ctx) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'dontInvert' });
+
+        if (code && code.data) {
+          handleQrPayload(code.data);
+          return;
+        }
+      }
+      scanAnimFrame = requestAnimationFrame(scanLoop);
+    }
+
+    function handleQrPayload(raw) {
+      stopCamera();
+      let parsed = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        if (raw.includes('firebaseio.com') || raw.includes('firebasedatabase.app')) {
+          parsed = { databaseURL: raw.trim() };
+        }
       }
 
-      updateCartBar();
-    };
-
-    function updateCartBar() {
-      const stickyBar = document.getElementById('stickyCartBar');
-      if (cart.length === 0) {
-        stickyBar.classList.add('hidden');
+      if (!parsed || !parsed.databaseURL) {
+        alert('رمز QR غير صالح. يرجى مسح رمز ربط المطعم');
+        startCamera();
         return;
       }
 
-      const totalQty = cart.reduce((sum, i) => sum + i.quantity, 0);
-      const totalSum = cart.reduce((sum, i) => sum + i.subtotal, 0);
+      const restName = parsed.restaurant_name || verifiedAccount?.restaurant_name || 'مطعمنا';
+      pairedData = {
+        restaurant_name: restName,
+        databaseURL: parsed.databaseURL.replace(/\/+$/, ''),
+        projectId: parsed.projectId,
+        apiKey: parsed.apiKey
+      };
 
-      document.getElementById('cartBadgeCount').textContent = totalQty;
-      document.getElementById('cartBarTotal').textContent = `${totalSum.toFixed(2)} ${currencySymbol}`;
-      stickyBar.classList.remove('hidden');
+      localStorage.setItem('qr_portal_paired', JSON.stringify(pairedData));
+      initFirebaseConnection(pairedData.databaseURL);
+      document.getElementById('loginPairedRestName').textContent = restName;
+      goToStep('login');
     }
 
-    document.getElementById('btnOpenCartModal').onclick = () => {
-      renderCartModal();
-      document.getElementById('cartModal').classList.remove('hidden');
-      // Pre-fetch GPS location silently in the background while user reviews cart
-      if (window.getUserLocation) {
-        window.getUserLocation().catch(e => console.log('Silent GPS pre-fetch pending permission'));
-      }
-    };
-
-    document.getElementById('btnCloseCartModal').onclick = () => {
-      document.getElementById('cartModal').classList.add('hidden');
-    };
-
-    function renderCartModal() {
-      const container = document.getElementById('cartItemsContainer');
-      container.innerHTML = '';
-
-      cart.forEach((item, index) => {
-        const div = document.createElement('div');
-        div.className = 'bg-slate-900 p-2.5 rounded-2xl border border-slate-800 space-y-2';
-        div.innerHTML = `
-          <div class="flex justify-between items-center">
-            <span class="font-black text-xs text-white">${item.product_name}</span>
-            <span class="font-black text-xs text-orange-400">${item.subtotal} ${currencySymbol}</span>
-          </div>
-
-          <div class="flex justify-between items-center gap-2">
-            <input type="text" value="${item.notes || ''}" onchange="window.updateItemNotes(${index}, this.value)"
-              placeholder="${window.t('item_notes_placeholder')}" class="p-1.5 bg-slate-950 border border-slate-800 rounded-xl text-[10px] text-white flex-1 outline-none">
-
-            <div class="flex items-center gap-2 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800">
-              <button onclick="window.changeQty(${index}, -1)" class="w-5 h-5 bg-slate-800 text-white rounded font-black text-xs flex items-center justify-center">-</button>
-              <span class="text-xs font-black text-white">${item.quantity}</span>
-              <button onclick="window.changeQty(${index}, 1)" class="w-5 h-5 bg-orange-600 text-white rounded font-black text-xs flex items-center justify-center">+</button>
-            </div>
-          </div>
-        `;
-        container.appendChild(div);
-      });
-
-      const totalSum = cart.reduce((sum, i) => sum + i.subtotal, 0);
-      document.getElementById('cartModalTotal').textContent = `${totalSum.toFixed(2)} ${currencySymbol}`;
+    function handleQrFileUpload(e) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.getElementById('qrCanvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imgData.data, imgData.width, imgData.height);
+          if (code && code.data) {
+            handleQrPayload(code.data);
+          } else {
+            alert('لم يتم العثور على رمز QR صالح في الصورة المرفوعة');
+          }
+        };
+        img.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
     }
 
-    window.changeQty = function (index, delta) {
-      cart[index].quantity += delta;
-      if (cart[index].quantity <= 0) {
-        cart.splice(index, 1);
-      } else {
-        cart[index].subtotal = cart[index].quantity * cart[index].price;
-      }
-      updateCartBar();
-      renderCartModal();
-    };
+    function toggleManualInput() {
+      const box = document.getElementById('manualInputBox');
+      box.classList.toggle('hidden');
+    }
 
-    window.updateItemNotes = function (index, notes) {
-      cart[index].notes = notes;
-    };
+    function handleManualConfirm() {
+      const val = document.getElementById('manualPayloadInput').value.trim();
+      if (val) handleQrPayload(val);
+    }
 
-    let globalSettings = {};
-
-    if (window.listenGlobalSettings) {
-      window.listenGlobalSettings((s) => {
-        globalSettings = s || {};
-        currencySymbol = s.currency || 'د.ج';
-        document.getElementById('restaurantNameHeader').textContent = s.restaurant_name || 'QR Restaurant';
-        if (s.hero_banner_text) {
-          const bannerP = document.querySelector('#mainBanner p');
-          if (bannerP) bannerP.textContent = s.hero_banner_text;
+    // Step 3: Firebase Init & Staff Login
+    function initFirebaseConnection(dbUrl) {
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp({ databaseURL: dbUrl });
         }
-      });
+        db = firebase.database();
+        document.getElementById('unlinkBtn').classList.remove('hidden');
+      } catch (e) {
+        console.error('Firebase init error:', e);
+      }
     }
 
-    async function checkGpsFenceBeforeAction() {
-      if (!globalSettings || !globalSettings.gps_enabled) return true; // GPS Fence turned off by Admin
+    async function handleStaffLogin(e) {
+      if (e) e.preventDefault();
+      const uInput = document.getElementById('staffUsernameInput');
+      const pInput = document.getElementById('staffPasswordInput');
+      const errBox = document.getElementById('loginErrorMsg');
+      const errText = document.getElementById('loginErrorText');
 
-      const restLat = parseFloat(globalSettings.gps_lat);
-      const restLng = parseFloat(globalSettings.gps_lng);
-      const maxRadius = parseInt(globalSettings.gps_radius, 10) || 150;
+      const username = (uInput.value || '').trim();
+      const password = (pInput.value || '').trim();
 
-      if (!restLat || !restLng) return true;
+      errBox.classList.add('hidden');
 
-      const modal = document.getElementById('gpsCheckingModal');
-      const titleEl = document.getElementById('gpsModalTitle');
-      const subEl = document.getElementById('gpsModalSub');
-
-      if (modal) {
-        titleEl.textContent = '📍 جاري التحقق من موقعك...';
-        subEl.textContent = 'يرجى تشغيل الـ GPS ومنح الإذن للمتصفح إذا طُلب ذلك لتأكيد تواجدك بالمطعم.';
-        modal.classList.remove('hidden');
+      if (!db) {
+        initFirebaseConnection(pairedData?.databaseURL);
       }
 
       try {
-        const userLoc = await window.getUserLocation();
-        const distanceMeters = window.calculateDistanceMeters(userLoc.lat, userLoc.lng, restLat, restLng);
-
-        if (distanceMeters > maxRadius) {
-          if (modal) modal.classList.add('hidden');
-          alert(`⛔ عذراً! أنت بعيد عن موقع المطعم.\n\nالمسافة الحالية بينك وبين المطعم: ${Math.round(distanceMeters)} متر\nالمسافة المسموحة: ${maxRadius} متر\n\nيجب أن تكون متواجداً داخل/قرب المطعم لإمكانية طلب الوجبات.`);
-          return false;
+        const snap = await db.ref('users').once('value');
+        const rawUsers = snap.val();
+        let users = [];
+        if (Array.isArray(rawUsers)) users = rawUsers.filter(Boolean);
+        else if (typeof rawUsers === 'object' && rawUsers) {
+          users = Object.entries(rawUsers).map(([k, u]) => ({ ...u, id: u.id || k }));
         }
 
-        if (modal) {
-          titleEl.textContent = '✅ تم تأكيد تواجدك بالمطعم!';
-          subEl.textContent = 'جاري إرسال الطلبية...';
-          await new Promise(r => setTimeout(r, 400));
-          modal.classList.add('hidden');
+        const found = users.find(u =>
+          (u.username || '').toLowerCase() === username.toLowerCase() &&
+          (!u.password || u.password === password)
+        );
+
+        if (!found) {
+          // Allow fallback default passwords for fast entry
+          if (['waiter', 'kitchen', 'cashier'].includes(username.toLowerCase()) && (!password || password === '123')) {
+            currentStaffUser = { username, role: username.toLowerCase(), full_name: username };
+          } else {
+            throw new Error('اسم المستخدم أو كلمة المرور غير صحيحة');
+          }
+        } else {
+          currentStaffUser = found;
         }
-        return true;
+
+        launchStation(currentStaffUser);
       } catch (err) {
-        if (modal) modal.classList.add('hidden');
-        alert(`⛔ يجب تفعيل الـ GPS لتحديد موقعك وتأكيد تواجدك بالمطعم:\n\n${err.message}`);
-        return false;
+        errText.textContent = err.message || 'فشل تسجيل الدخول';
+        errBox.classList.remove('hidden');
       }
     }
 
-    document.getElementById('btnSubmitOrder').onclick = async () => {
-      if (cart.length === 0) return;
+    function launchStation(user) {
+      goToStep('active_station');
 
-      const canProceed = await checkGpsFenceBeforeAction();
-      if (!canProceed) return;
+      const role = user.role || 'waiter';
+      const rTitle = document.getElementById('stationRoleTitle');
+      const rBadge = document.getElementById('stationRoleBadge');
+      const rIcon = document.getElementById('stationRoleIcon');
+      const rDesc = document.getElementById('stationUserDesc');
+      const callWaiterBtn = document.getElementById('callWaiterBtn');
 
-      const totalSum = cart.reduce((sum, i) => sum + i.subtotal, 0);
-      const notes = document.getElementById('orderNotesInput').value.trim();
+      rDesc.textContent = (user.full_name || user.username) + ' • ' + (pairedData?.restaurant_name || 'مطعمنا');
 
-      const newOrderRef = window.db.ref('orders').push();
-      const newOrder = {
-        id: newOrderRef.key,
-        table_number: tableNum,
-        items: cart,
-        total_amount: totalSum,
-        status: 'NEW',
-        notes: notes,
-        created_at: Date.now()
-      };
+      if (role === 'kitchen') {
+        rTitle.textContent = 'شاشة المطبخ (Kitchen KDS)';
+        rBadge.textContent = 'KITCHEN';
+        rIcon.textContent = '👨‍🍳';
+        callWaiterBtn.classList.remove('hidden');
+      } else if (role === 'waiter') {
+        rTitle.textContent = 'محطة النادل المحمول (Mobile Waiter)';
+        rBadge.textContent = 'WAITER';
+        rIcon.textContent = '🛎️';
+        callWaiterBtn.classList.add('hidden');
+      } else {
+        rTitle.textContent = 'محطة العمل (' + role + ')';
+        rBadge.textContent = role.toUpperCase();
+        rIcon.textContent = '💼';
+        callWaiterBtn.classList.add('hidden');
+      }
 
-      await newOrderRef.set(newOrder);
-
-      cart = [];
-      updateCartBar();
-      document.getElementById('cartModal').classList.add('hidden');
-      alert(window.t('order_success_title'));
-    };
-
-    function renderActiveCustomerOrder() {
-      if (!activeCustomerOrder) return;
-
-      const sec = document.getElementById('customerActiveOrderSection');
-      document.getElementById('activeOrderIdText').textContent = `طلب #${activeCustomerOrder.id.slice(-5)}`;
-      document.getElementById('activeOrderStatusBadge').textContent = window.t(`status_${activeCustomerOrder.status}`);
-      document.getElementById('activeOrderTotalText').textContent = `${activeCustomerOrder.total_amount} ${currencySymbol}`;
-
-      const itemsList = document.getElementById('activeOrderItemsList');
-      itemsList.innerHTML = activeCustomerOrder.items.map(i => `
-        <div class="flex justify-between">
-          <span>${i.quantity}x ${i.product_name}</span>
-          <span class="font-bold text-white">${i.subtotal} ${currencySymbol}</span>
-        </div>
-      `).join('');
-
-      sec.classList.remove('hidden');
+      setupRealtimeStationListeners(role);
     }
 
-    document.getElementById('btnCallWaiter').onclick = async () => {
-      const canProceed = await checkGpsFenceBeforeAction();
-      if (!canProceed) return;
+    function setupRealtimeStationListeners(role) {
+      if (!db) return;
 
-      const newRef = window.db.ref('calls').push();
-      await newRef.set({
-        id: newRef.key,
-        table_number: tableNum,
-        type: 'call_waiter',
+      db.ref('orders').on('value', snap => {
+        const raw = snap.val();
+        ordersList = raw ? (Array.isArray(raw) ? raw.filter(Boolean) : Object.entries(raw).map(([k, o]) => ({ ...o, id: o.id || k }))) : [];
+        renderStationView(role);
+      });
+
+      db.ref('service_calls').on('value', snap => {
+        const raw = snap.val();
+        callsList = raw ? (Array.isArray(raw) ? raw.filter(Boolean) : Object.entries(raw).map(([k, c]) => ({ ...c, id: c.id || k }))) : [];
+        renderStationView(role);
+      });
+    }
+
+    function renderStationView(role) {
+      const container = document.getElementById('stationContentArea');
+      if (!container) return;
+
+      if (role === 'kitchen') {
+        renderKitchenKds(container);
+      } else {
+        renderWaiterView(container);
+      }
+    }
+
+    function renderKitchenKds(container) {
+      const activeTickets = ordersList.filter(o => o.status !== 'SERVED' && o.status !== 'PAID' && o.status !== 'CANCELLED');
+
+      if (activeTickets.length === 0) {
+        container.innerHTML = '<div class="text-center py-20 bg-[#151c2c] rounded-3xl border border-slate-800 p-8 space-y-3">' +
+          '<div class="text-4xl">👨‍🍳</div><h3 class="text-base font-black text-white">لا توجد طلبات معلقة</h3><p class="text-xs text-slate-400">جميع تذاكر المطبخ تم تحضيرها بنجاح!</p></div>';
+        return;
+      }
+
+      container.innerHTML = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">' +
+        activeTickets.map(o => {
+          const isPrep = o.status === 'PREPARING';
+          const isReady = o.status === 'READY';
+          return '<div class="bg-[#151c2c] border ' + (isReady ? 'border-emerald-500/50' : isPrep ? 'border-blue-500/50' : 'border-slate-800') + ' rounded-2xl p-4 shadow-xl space-y-3">' +
+            '<div class="flex justify-between items-center border-b border-slate-800 pb-2.5">' +
+              '<span class="font-black text-white text-base">طاولة #' + (o.table_number || '-') + '</span>' +
+              '<span class="text-xs font-bold px-2 py-0.5 rounded-lg ' + (isReady ? 'bg-emerald-500/20 text-emerald-400' : isPrep ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400') + '">' + (o.status || 'NEW') + '</span>' +
+            '</div>' +
+            '<div class="space-y-1.5">' +
+              (o.items || []).map(it => '<div class="flex justify-between text-xs font-bold"><span>' + (it.product_name || it.name) + '</span><span class="text-amber-400">x' + it.quantity + '</span></div>').join('') +
+            '</div>' +
+            '<div class="pt-2 border-t border-slate-800 flex gap-2">' +
+              (!isPrep && !isReady ? '<button onclick="updateTicketStatus(\'' + o.id + '\', \'PREPARING\')" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl text-xs">بدء التحضير 🔥</button>' : '') +
+              (isPrep ? '<button onclick="updateTicketStatus(\'' + o.id + '\', \'READY\')" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs">جاهز للتسليم 🛎️</button>' : '') +
+              (isReady ? '<div class="w-full py-2 text-center text-emerald-400 font-bold text-xs bg-emerald-950/40 rounded-xl">بانتظار استلام النادل</div>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+    }
+
+    function renderWaiterView(container) {
+      const readyOrders = ordersList.filter(o => o.status === 'READY');
+      const pendingCalls = callsList;
+
+      container.innerHTML = '<div class="space-y-6">' +
+        // Table Calls Section
+        (pendingCalls.length > 0 ? (
+          '<div class="space-y-3"><h3 class="font-black text-xs text-rose-400 uppercase tracking-wider">🔔 نداءات الطاولات اللحظية</h3><div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
+          pendingCalls.map(c => '<div class="bg-rose-950/20 border border-rose-500/40 rounded-2xl p-4 flex items-center justify-between shadow-lg"><div><span class="font-black text-white text-sm block">طاولة #' + c.table_number + '</span><span class="text-[11px] text-rose-300">' + (c.type === 'request_bill' ? 'طلب الفاتورة 💳' : 'استدعاء النادل 🛎️') + '</span></div><button onclick="resolveCall(\'' + c.id + '\')" class="px-3 py-1.5 bg-rose-600 text-white font-black rounded-xl text-xs">تمت التلبية ✓</button></div>').join('') +
+          '</div></div>'
+        ) : '') +
+
+        // Orders Ready for pickup
+        '<div class="space-y-3"><h3 class="font-black text-xs text-emerald-400 uppercase tracking-wider">🟢 وجبات جاهزة للتسليم للزبائن (' + readyOrders.length + ')</h3>' +
+        (readyOrders.length === 0 ? '<div class="p-8 text-center bg-[#151c2c] rounded-2xl border border-slate-800 text-xs text-slate-400">لا توجد أطباق جاهزة للتسليم حالياً</div>' : (
+          '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' +
+          readyOrders.map(o => '<div class="bg-emerald-950/20 border border-emerald-500/40 rounded-2xl p-4 flex items-center justify-between shadow-lg"><div><span class="font-black text-white text-sm block">طاولة #' + o.table_number + '</span><span class="text-xs text-slate-300">' + (o.items || []).map(i => i.product_name).join(', ') + '</span></div><button onclick="updateTicketStatus(\'' + o.id + '\', \'SERVED\')" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl text-xs">تم التسليم ✓</button></div>').join('') +
+          '</div>'
+        )) +
+        '</div></div>';
+    }
+
+    async function updateTicketStatus(orderId, status) {
+      if (!db) return;
+      await db.ref('orders/' + orderId + '/status').set(status);
+      playChime();
+    }
+
+    async function resolveCall(callId) {
+      if (!db) return;
+      await db.ref('service_calls/' + callId).remove();
+    }
+
+    async function broadcastKitchenCall() {
+      if (!db) return;
+      await db.ref('service_calls').push({
+        id: 'call_' + Date.now(),
+        table_number: 'المطبخ',
+        type: 'kitchen_call',
         created_at: Date.now()
       });
-      alert(window.t('call_waiter_sent'));
-    };
+      alert('تم إرسال إشعار فوري لجميع النوادل 🛎️');
+    }
 
-    document.getElementById('btnRequestBill').onclick = async () => {
-      const canProceed = await checkGpsFenceBeforeAction();
-      if (!canProceed) return;
+    function handleStaffLogout() {
+      currentStaffUser = null;
+      goToStep('login');
+    }
 
-      const newRef = window.db.ref('calls').push();
-      await newRef.set({
-        id: newRef.key,
-        table_number: tableNum,
-        type: 'request_bill',
-        created_at: Date.now()
-      });
-      alert(window.t('request_bill_sent'));
-    };
+    function handleUnlinkRestaurant() {
+      if (confirm('هل ترغب بفك ربط هذا المطعم والاتصال بمطعم آخر؟')) {
+        localStorage.removeItem('qr_portal_paired');
+        pairedData = null;
+        goToStep('email');
+      }
+    }
+
+    function playChime() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        [523.25, 659.25, 783.99].forEach((f, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = f;
+          const start = ctx.currentTime + i * 0.1;
+          gain.gain.setValueAtTime(0.3, start);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+          osc.start(start);
+          osc.stop(start + 0.35);
+        });
+      } catch(e) {}
+    }
+
+    function changeLanguage(lang) {
+      currentLang = lang;
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    }
   </script>
 </body>
-
 </html>
